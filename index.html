@@ -1,0 +1,127 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>CodeNova AI Dashboard</title>
+    <script src="https://js.puter.com/v2/"></script>
+    <style>
+        body { font-family: Arial; max-width: 480px; margin: auto; padding: 20px; }
+        .card { background: #f4f4f4; padding: 15px; border-radius: 12px; margin-bottom: 20px; }
+        input, select { width: 100%; padding: 12px; border-radius: 10px; border: 1px solid #ccc; margin-bottom: 10px; }
+        button { width: 100%; background: #007aff; color: white; padding: 12px; border: none; border-radius: 10px; font-size: 16px; cursor:pointer; }
+        #dashboard { display: none; }
+    </style>
+</head>
+<body>
+
+<h2>CodeNova AI Dashboard</h2>
+
+<!-- Auth Card -->
+<div id="auth" class="card">
+    <h3>Login / Signup</h3>
+    <input id="email" placeholder="Email">
+    <input id="password" type="password" placeholder="Password">
+    <button onclick="login()">Login</button>
+    <button style="margin-top:10px;background:#00b32d" onclick="signup()">Signup</button>
+</div>
+
+<!-- Dashboard Card -->
+<div id="dashboard">
+    <div class="card">
+        <h3>Welcome <span id="userEmail"></span></h3>
+    </div>
+
+    <div class="card">
+        <h3>Your AI Key</h3>
+        <p id="keyBox" style="font-size:18px;font-weight:bold;"></p>
+        <button onclick="regenKey()">Regenerate Key</button>
+    </div>
+
+    <div class="card">
+        <h3>Select Roblox Game</h3>
+        <select id="gameSelect" onchange="saveGame()">
+            <option value="none">-- Choose Game --</option>
+            <option value="ChatAI">Chat AI</option>
+            <option value="AI Hangout">AI Hangout</option>
+            <option value="AvatarChooser">AI Avatar Chooser</option>
+        </select>
+    </div>
+
+    <div class="card">
+        <h3>Roblox Endpoint</h3>
+        <p id="endpoint" style="font-weight:bold"></p>
+    </div>
+
+    <button onclick="logout()" style="background:red;">Logout</button>
+</div>
+
+<script>
+const FUNCTION_URL = "PASTE_YOUR_CLOUD_FUNCTION_URL_HERE";
+
+// Login
+async function login() {
+    try {
+        const user = await puter.auth.signInEmailPassword(email.value, password.value);
+        loadDashboard(user);
+    } catch(e) {
+        alert("Login failed: " + e.message);
+    }
+}
+
+// Signup
+async function signup() {
+    try {
+        const user = await puter.auth.signUpEmailPassword(email.value, password.value);
+        const newKey = crypto.randomUUID();
+        await puter.kv.set(`key-${user.email}`, newKey);
+        loadDashboard(user);
+    } catch(e) {
+        alert("Signup failed: " + e.message);
+    }
+}
+
+// Load dashboard
+async function loadDashboard(user) {
+    document.getElementById("auth").style.display = "none";
+    document.getElementById("dashboard").style.display = "block";
+
+    userEmail.innerText = user.email;
+
+    // Load or create AI key
+    let key = await puter.kv.get(`key-${user.email}`);
+    if(!key) {
+        key = crypto.randomUUID();
+        await puter.kv.set(`key-${user.email}`, key);
+    }
+    keyBox.innerText = key;
+
+    // Load saved game
+    const savedGame = await puter.kv.get(`game-${user.email}`);
+    if(savedGame) gameSelect.value = savedGame;
+
+    // Show endpoint
+    endpoint.innerText = FUNCTION_URL;
+}
+
+// Regenerate key
+async function regenKey() {
+    const email = userEmail.innerText;
+    const newKey = crypto.randomUUID();
+    await puter.kv.set(`key-${email}`, newKey);
+    keyBox.innerText = newKey;
+}
+
+// Save game
+async function saveGame() {
+    const email = userEmail.innerText;
+    await puter.kv.set(`game-${email}`, gameSelect.value);
+}
+
+// Logout
+function logout() {
+    puter.auth.signOut();
+    location.reload();
+}
+</script>
+
+</body>
+</html>
